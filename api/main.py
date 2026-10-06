@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -29,22 +30,6 @@ except ModuleNotFoundError:
     )
     from feature_engineering import engineer_features
 
-# Initialize FastAPI App
-app = FastAPI(
-    title="Bank Lead Conversion Scoring API",
-    description="Production machine learning API for telemarketing lead qualification and conversion propensity scoring.",
-    version="1.0.0",
-)
-
-# Enable CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Lazy/Global model and preprocessor references
 _MODEL = None
 _PREPROCESSOR = None
@@ -73,6 +58,31 @@ def get_artifacts():
             _METRICS = {}
 
     return _MODEL, _PREPROCESSOR, _METADATA, _METRICS
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Preload ML artifacts during container startup
+    get_artifacts()
+    yield
+
+
+# Initialize FastAPI App
+app = FastAPI(
+    title="Bank Lead Conversion Scoring API",
+    description="Production machine learning API for telemarketing lead qualification and conversion propensity scoring.",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+# Enable CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Pydantic Schemas
@@ -264,5 +274,9 @@ def predict_batch_leads(batch: BatchLeadInput):
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
-    uvicorn.run("api.main:app", host="127.0.0.1", port=8000, reload=True)
+
+    port = int(os.environ.get("PORT", 8000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    uvicorn.run("api.main:app", host=host, port=port, reload=False)

@@ -15,5 +15,10 @@ data/processed/*
 !data/processed/.gitkeep
 models/*
 !models/.gitkeep
+!models/model.pkl
+!models/metadata.json
+!models/metrics.json
 artifacts/*
 !artifacts/.gitkeep
+!artifacts/preprocessor.pkl
+!artifacts/features.json
